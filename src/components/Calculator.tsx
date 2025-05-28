@@ -155,6 +155,10 @@ const Calculator: React.FC<CalculatorProps> = () => {
     setIsEditing(!isEditing);
   };
 
+  const handleDisplayClick = () => {
+    setIsEditing(true);
+  };
+
   const handleDisplayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isEditing) {
       setDisplay(e.target.value);
@@ -269,7 +273,10 @@ const Calculator: React.FC<CalculatorProps> = () => {
                 autoFocus
               />
             ) : (
-              <div className="text-white text-4xl font-light overflow-hidden">
+              <div 
+                className="text-white text-4xl font-light overflow-hidden cursor-pointer"
+                onClick={handleDisplayClick}
+              >
                 {display}
               </div>
             )}
