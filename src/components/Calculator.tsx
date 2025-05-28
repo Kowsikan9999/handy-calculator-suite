@@ -2,9 +2,17 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { RotateCcw, Calculator as CalculatorIcon } from 'lucide-react';
+import { RotateCcw, Calculator as CalculatorIcon, Edit, History } from 'lucide-react';
+import CalculatorHistory from './CalculatorHistory';
 
 interface CalculatorProps {}
+
+interface HistoryEntry {
+  id: string;
+  expression: string;
+  result: string;
+  timestamp: Date;
+}
 
 const Calculator: React.FC<CalculatorProps> = () => {
   const [display, setDisplay] = useState('0');
@@ -12,6 +20,19 @@ const Calculator: React.FC<CalculatorProps> = () => {
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState(false);
   const [isAdvanced, setIsAdvanced] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  const addToHistory = (expression: string, result: string) => {
+    const newEntry: HistoryEntry = {
+      id: Date.now().toString(),
+      expression,
+      result,
+      timestamp: new Date()
+    };
+    setHistory(prev => [newEntry, ...prev.slice(0, 49)]); // Keep last 50 entries
+  };
 
   const inputNumber = (num: string) => {
     if (waitingForOperand) {
@@ -36,6 +57,7 @@ const Calculator: React.FC<CalculatorProps> = () => {
     setPreviousValue(null);
     setOperation(null);
     setWaitingForOperand(false);
+    setIsEditing(false);
   };
 
   const performOperation = (nextOperation: string) => {
@@ -88,7 +110,11 @@ const Calculator: React.FC<CalculatorProps> = () => {
         return;
     }
 
-    setDisplay(String(result));
+    const expression = `${func}(${inputValue})`;
+    const resultStr = String(result);
+    addToHistory(expression, resultStr);
+
+    setDisplay(resultStr);
     setWaitingForOperand(true);
   };
 
@@ -113,11 +139,48 @@ const Calculator: React.FC<CalculatorProps> = () => {
     if (operation && previousValue !== null) {
       const inputValue = parseFloat(display);
       const newValue = calculate(previousValue, inputValue, operation);
-      setDisplay(String(newValue));
+      const expression = `${previousValue} ${operation} ${inputValue}`;
+      const resultStr = String(newValue);
+      
+      addToHistory(expression, resultStr);
+      
+      setDisplay(resultStr);
       setPreviousValue(null);
       setOperation(null);
       setWaitingForOperand(true);
     }
+  };
+
+  const handleEdit = () => {
+    setIsEditing(!isEditing);
+  };
+
+  const handleDisplayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isEditing) {
+      setDisplay(e.target.value);
+    }
+  };
+
+  const handleDisplayKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setIsEditing(false);
+      const value = parseFloat(display);
+      if (!isNaN(value)) {
+        setDisplay(String(value));
+      }
+    }
+  };
+
+  const handleHistorySelect = (entry: HistoryEntry) => {
+    setDisplay(entry.result);
+    setShowHistory(false);
+    setPreviousValue(null);
+    setOperation(null);
+    setWaitingForOperand(true);
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
   };
 
   const CalculatorButton: React.FC<{
@@ -144,6 +207,17 @@ const Calculator: React.FC<CalculatorProps> = () => {
     );
   };
 
+  if (showHistory) {
+    return (
+      <CalculatorHistory
+        history={history}
+        onBack={() => setShowHistory(false)}
+        onSelect={handleHistorySelect}
+        onClear={clearHistory}
+      />
+    );
+  }
+
   return (
     <div className="max-w-md mx-auto p-4 space-y-4">
       <Card className="bg-black/90 backdrop-blur-lg border-gray-800 p-6 rounded-3xl shadow-2xl">
@@ -153,13 +227,29 @@ const Calculator: React.FC<CalculatorProps> = () => {
             <CalculatorIcon className="text-orange-500" size={24} />
             <h1 className="text-white font-bold text-lg">Calculator</h1>
           </div>
-          <Button
-            onClick={() => setIsAdvanced(!isAdvanced)}
-            variant="ghost"
-            className="text-orange-500 hover:bg-orange-500/20 rounded-xl"
-          >
-            {isAdvanced ? 'Normal' : 'Advanced'}
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              onClick={handleEdit}
+              variant="ghost"
+              className={`text-orange-500 hover:bg-orange-500/20 rounded-xl ${isEditing ? 'bg-orange-500/20' : ''}`}
+            >
+              <Edit size={20} />
+            </Button>
+            <Button
+              onClick={() => setShowHistory(true)}
+              variant="ghost"
+              className="text-orange-500 hover:bg-orange-500/20 rounded-xl"
+            >
+              <History size={20} />
+            </Button>
+            <Button
+              onClick={() => setIsAdvanced(!isAdvanced)}
+              variant="ghost"
+              className="text-orange-500 hover:bg-orange-500/20 rounded-xl"
+            >
+              {isAdvanced ? 'Normal' : 'Advanced'}
+            </Button>
+          </div>
         </div>
 
         {/* Display */}
@@ -168,9 +258,21 @@ const Calculator: React.FC<CalculatorProps> = () => {
             <div className="text-gray-400 text-sm mb-1">
               {operation && previousValue !== null ? `${previousValue} ${operation}` : ''}
             </div>
-            <div className="text-white text-4xl font-light overflow-hidden">
-              {display}
-            </div>
+            {isEditing ? (
+              <input
+                type="text"
+                value={display}
+                onChange={handleDisplayChange}
+                onKeyPress={handleDisplayKeyPress}
+                onBlur={() => setIsEditing(false)}
+                className="bg-transparent text-white text-4xl font-light overflow-hidden w-full text-right outline-none"
+                autoFocus
+              />
+            ) : (
+              <div className="text-white text-4xl font-light overflow-hidden">
+                {display}
+              </div>
+            )}
           </div>
         </div>
 
